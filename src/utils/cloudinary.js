@@ -34,11 +34,11 @@ const deleteOnCloudinary = async (imageUrl) => {
         const urlParts = imageUrl.split('/');
         const versionAndPublicId = urlParts.slice(urlParts.indexOf('upload') + 1).join('/');
         const publicId = versionAndPublicId.substring(0, versionAndPublicId.lastIndexOf('.')); // Remove file extension
-
+        
         const response = await cloudinary.uploader.destroy(publicId, {
-            resource_type: 'auto',
+            resource_type: 'image',
         })
-        console.log('File deleted successfully:', result);
+        console.log('File deleted successfully:', response);
 
         return response
 

@@ -190,13 +190,13 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
         process.env.REFRESH_TOKEN_SECRET
     )
 
-    const user = User.findById(decodedToken?._id)
+    const user = await User.findById(decodedToken?._id)    
 
     if(!user){
         throw new ApiError(401, "Invalid refresh token")
     }
 
-    if(decodedToken !== user?.refreshToken){
+    if(incomingRefreshToken !== user?.refreshToken){
         throw new ApiError(401, "Invalid refresh token")
     }
 
@@ -255,8 +255,8 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 const updateAccountDetails = asyncHandler(async (req, res) => {
     const {fullName, email} = req.body
 
-    if(!(fullName || email)){
-        throw new ApiError(400, "All fields are required")
+    if(!fullName && !email){
+        throw new ApiError(400, "At least one fields is required")
     }
 
     const user = await User.findByIdAndUpdate(
@@ -283,8 +283,8 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     )
 })
 
-const updateUserAvatar = asyncHandler(async (req, res) => {
-    const avatarLocalPath = req.file?.avatar.path
+const updateUserAvatar = asyncHandler(async (req, res) => {  
+    const avatarLocalPath = req.file?.path
 
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar file is missing")
@@ -296,6 +296,8 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     }
 
     const avatarDeleted = await deleteOnCloudinary(req.user?.avatar)
+    console.log(avatarDeleted);
+    
     if(!avatarDeleted){
         throw new ApiError(401, "Error while deleting flie on cloudinary")
     }
@@ -316,7 +318,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 })
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-    const coverImageLocalPath = req.file?.coverImage.path
+    const coverImageLocalPath = req.file?.path
 
     if(!coverImageLocalPath){
         throw new ApiError(400, "coverImage file is missing")
@@ -418,7 +420,9 @@ const getUserChannelProfile = asyncHandler( async(req, res) => {
 })
 
 const getWatchHistory = asyncHandler(async (req, res) => {
-    const user = User.aggregate([
+  console.log(req.user._id);
+  
+    const user = await User.aggregate([
         {
             $match: {
                 _id: new mongoose.Types.ObjectId(req.user._id)
