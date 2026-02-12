@@ -16,7 +16,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
     const comments = await Comment.aggregate([
         {
-            $match: new mongoose.Types.ObjectId(videoId)
+            $match: {_id: new mongoose.Types.ObjectId(videoId)}
         },
         {
             $lookup: {
@@ -67,8 +67,8 @@ const getVideoComments = asyncHandler(async (req, res) => {
         }
     ])
 
-    if(!comments.length){
-        throw new ApiError(404, "no comments found")
+    if(!comments){
+        throw new ApiError(500, "error while fetching comments")
     }
 
     return res
@@ -81,8 +81,12 @@ const addComment = asyncHandler(async (req, res) => {
     const { content } = req.body;
     const { videoId } = req.params;
 
-    if(!content || !videoId){
-        throw new ApiError(404, "provide both content and videoId")
+    if(!content?.trim()){
+        throw new ApiError(404, "comment id is required")
+    }
+    
+    if(!videoId?.trim()){
+        throw new ApiError(404, "video id is required")
     }
 
     const comment = await Comment.create({
@@ -105,11 +109,17 @@ const updateComment = asyncHandler(async (req, res) => {
     const { content } = req.body
     const { commentId } = req.params
 
-    if(!content && !commentId){
-        throw new ApiError(404, "content and commentId are required")
+    if(!content?.trim()){
+        throw new ApiError(404, "content is required")
+    }
+    
+    if(!commentId?.trim()){
+        throw new ApiError(404, "commentId is required")
     }
 
-    if(Comment.owner != req.user._id){
+    const comment = await Comment.findById(commentId)
+
+    if(!comment.owner.equals(req.user._id)){
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -127,22 +137,23 @@ const updateComment = asyncHandler(async (req, res) => {
 
     return res
     .status(200)
-    .json(new ApiResponse(200, content, "comment updated successfully"))
+    .json(new ApiResponse(200, updatedComment, "comment updated successfully"))
 })
 
 const deleteComment = asyncHandler(async (req, res) => {
-
     const {commentId} = req.params
 
     if(!commentId){
         throw new ApiError(404, "comment id is required")
     }
 
-    if(Comment.owner != req.user._id){
+    const comment = await Comment.findById(commentId)
+
+    if(!comment.owner.equals(req.user._id)){
         throw new ApiError(401, "Unauthorized request")
     }
 
-    const isDeleted = await Comment.findByIdAndDelete({commentId})
+    const isDeleted = await Comment.findByIdAndDelete(commentId)
 
     if(!isDeleted){
         throw new ApiError(500, "Error while deleting comment")
