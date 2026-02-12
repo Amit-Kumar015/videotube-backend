@@ -71,11 +71,18 @@ const getAllVideos = asyncHandler(async (req, res) => {
 })
 
 const publishAVideo = asyncHandler(async (req, res) => {
-    const { title, description } = req.body
+    const { title, description, isPublished } = req.body
 
-    if([title, description].some(item => item.trip() === "")){
+    if(isPublished === null){
+      throw new ApiError(404, "Publish status is needed")
+    }
+
+    const publishStatus = req.body?.isPublished === "true" ? true : false
+
+    if([title, description].some(item => item.trim() === "")){
         throw new ApiError(404, "provide both title and description")
     }
+    
 
     const videoLocalPath = req.files?.videoFile[0]?.path
     const thumbnailLocalPath = req.files?.thumbnail[0]?.path
@@ -101,7 +108,8 @@ const publishAVideo = asyncHandler(async (req, res) => {
         owner: req.user._id,
         title,
         describtion: description,
-        duration: video.duration
+        duration: video.duration,
+        isPublished: publishStatus
     })
 
     if(!upload){
@@ -215,28 +223,28 @@ const getVideoById = asyncHandler(async (req, res) => {
 })
 
 const updateVideo = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
+    const { videoId } = req.params    
     
     if(!videoId || !isValidObjectId(videoId)){
         throw new ApiError(400, "provide valid video id")
     }
     
     const {newTitle, newDescription} = req.body
-    const thumbnailLocalPath = req.files?.thumbnail[0]?.path
+    const thumbnailLocalPath = req.file?.path
 
-    if([newTitle, newDescription].some(item => item.trim() === "")){
-        throw new ApiError(404, "provide new content to change")
+    if(!newTitle?.trim() && !newDescription?.trim() && !thumbnailLocalPath){
+      throw new ApiError(400, "Please provide at least one field to update.")
     }
 
-    if(!thumbnailLocalPath){
-        throw new ApiError(404, "thumbnail is required")
+    let thumbnail;
+
+    if (thumbnailLocalPath) {
+        thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
     }
-
-    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-
+    
     if(!thumbnail){
-        throw new ApiError(500, "error while uploading thumbnail on cloudinary")
-    }
+      throw new ApiError(500, "error while uploading thumbnail on cloudinary")
+    }    
 
     const video = await Video.findById(videoId)
 
@@ -244,18 +252,20 @@ const updateVideo = asyncHandler(async (req, res) => {
         throw new ApiError(404, "video not found")
     }
 
-    if(!video.owner.toString().equals(req.user._id.toString())){
+    if(!video.owner.equals(req.user._id)){
         throw new ApiError(401, "Unauthorized request")
     }
+
+    const updateFields = {};
+
+    if (newTitle) updateFields.title = newTitle;
+    if (newDescription) updateFields.description = newDescription;
+    if (thumbnail) updateFields.thumbnail = thumbnail;
 
     const updated = await Video.findByIdAndUpdate(
         videoId,
         {
-            $set: {
-                title: newTitle || title,
-                describtion: newDescription || describtion,
-                thumbnail: thumbnail
-            }
+            $set: { updateFields }
         },
         {
             new: true
@@ -287,7 +297,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
         throw new ApiError(404, "video not found")
     }
 
-    if(!video.owner.toString().equals(req.user._id.toString())){
+    if(!video.owner.equals(req.user._id)){
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -323,7 +333,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
         throw new ApiError(404, "video not found")
     }
 
-    if (!video.owner.toString().equals(req.user._id.toString())) {
+    if (!video.owner.equals(req.user._id)) {
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -331,7 +341,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
         videoId,
         {
             $set: {
-                isPublished: !isPublished
+                isPublished: !video.isPublished
             }
         },
         {
