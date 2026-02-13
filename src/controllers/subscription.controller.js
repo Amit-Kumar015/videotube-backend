@@ -107,21 +107,15 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 })
 
 const getSubscribedChannels = asyncHandler(async (req, res) => {
-    const { subscriberId } = req.params
+    const { channelId } = req.params
 
-    if(!subscriberId || !isValidObjectId(subscriberId)){
+    if(!channelId || !isValidObjectId(channelId)){
         throw new ApiError(400, "provide valid subscriber id")
-    }
-
-    const user = await User.findById(subscriberId)
-
-    if(!user){
-        throw new ApiError(404,"subscriber not found")
     }
     
     const channels = await Subscription.aggregate([
         {
-            $match: {subscriber: subscriberId}
+            $match: {subscriber: new mongoose.Types.ObjectId(channelId)}
         },
         {
             $lookup: {
@@ -136,19 +130,15 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
         },
         {
             $project: {
-                subscriber: {
-                    _id: 1,
-                    fullName: 1,
-                    username: 1,
-                    avatar: 1
+                channel: {
+                    _id: "$channel._id",
+                    fullName: "$channel.fullName",
+                    username: "$channel.username",
+                    avatar: "$channel.avatar"
                 }
             }
         }
     ])
-
-    if(!channels.length){
-        throw new ApiError(404,"the user have not subscribed to any channel")
-    }
 
     return res
     .status(200)
