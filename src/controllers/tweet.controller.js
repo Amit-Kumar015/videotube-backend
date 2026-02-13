@@ -10,7 +10,7 @@ const createTweet = asyncHandler(async (req, res) => {
     const {content} = req.body
 
     if(!content){
-        throw new ApiError(404, "Tweet content is required")
+        throw new ApiError(404, "Tweet is required")
     }
 
     const tweet = await Tweet.create({
@@ -39,23 +39,23 @@ const getUserTweets = asyncHandler(async (req, res) => {
 
     const userTweets = await Tweet.aggregate([
         {
-            $match: {owner: userId}
+            $match: {owner: new mongoose.Types.ObjectId(userId)}
         },
         {
             $lookup: {
                 from: "users",
                 foreignField: "_id",
                 localField: "owner",
-                as: "tweetsdocument"
+                as: "ownerDetails"
             }
         },
         {
-            $unwind: "$tweetsdocument"
+            $unwind: "$ownerDetails"
         },
         {
             $project: {
                 content: 1,
-                owner: "$tweetsdocument"
+                owner: "$ownerDetails"
             }
         }
     ])
@@ -77,11 +77,11 @@ const updateTweet = asyncHandler(async (req, res) => {
     const {content} = req.body
 
     if(!tweetId || !isValidObjectId(tweetId)){
-        throw new ApiError(404, "provide valid tweet id")
+        throw new ApiError(400, "provide valid tweet id")
     }
 
-    if(!content){
-        throw new ApiError(404, "provide proper description")
+    if(!content.trim()){
+        throw new ApiError(400, "provide updated tweet")
     }
 
     const tweet = await Tweet.findById(tweetId)
@@ -90,7 +90,7 @@ const updateTweet = asyncHandler(async (req, res) => {
         throw new ApiError(404, "tweet does not exist")
     }
 
-    if(!tweet.owner.toString().equals(req.user._id.toString())){
+    if(!tweet.owner.equals(req.user._id)){
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -111,7 +111,7 @@ const updateTweet = asyncHandler(async (req, res) => {
     return res
     .status(200)
     .json(
-        new ApiResponse(200, content, "tweet updated successfully")
+        new ApiResponse(200, newTweet, "tweet updated successfully")
     )
 })
 
@@ -129,7 +129,7 @@ const deleteTweet = asyncHandler(async (req, res) => {
         throw new ApiError(404, "tweet does not exist")
     }
 
-    if(!tweet.owner.toString().equals(req.user._id.toString())){
+    if(!tweet.owner.equals(req.user._id)){
         throw new ApiError(401, "Unauthorized request")
     }
 
