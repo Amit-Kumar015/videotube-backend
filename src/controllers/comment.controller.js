@@ -14,9 +14,12 @@ const getVideoComments = asyncHandler(async (req, res) => {
         throw new ApiError(404, "video id is required")        
     }
 
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+
     const comments = await Comment.aggregate([
         {
-            $match: {_id: new mongoose.Types.ObjectId(videoId)}
+            $match: {video: new mongoose.Types.ObjectId(videoId)}
         },
         {
             $lookup: {
@@ -34,6 +37,9 @@ const getVideoComments = asyncHandler(async (req, res) => {
                     }
                 ]
             }
+        },
+        {
+          $unwind: "$owner"
         },
         {
             $lookup: {
@@ -54,22 +60,17 @@ const getVideoComments = asyncHandler(async (req, res) => {
             $project: {
                 content: 1,
                 likes: 1,
-                fullname: 1,
-                username: 1,
-                avatar: 1
+                owner: 1,
+                createdAt: 1
             }
         },
         {
-            $skip: (page -1) * limit
+            $skip: (pageNumber -1) * limitNumber
         },
         {
-            $limit: parseInt(limit)
+            $limit: limitNumber
         }
     ])
-
-    if(!comments){
-        throw new ApiError(500, "error while fetching comments")
-    }
 
     return res
     .status(200)

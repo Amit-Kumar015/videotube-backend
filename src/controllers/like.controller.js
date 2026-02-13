@@ -7,7 +7,7 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 const toggleVideoLike = asyncHandler(async (req, res) => {
     const { videoId } = req.params
 
-    if (!videoId || isValidObjectId(videoId)) {
+    if (!videoId || !isValidObjectId(videoId)) {
         throw new ApiError(404, "provide valid video id")
     }
 
@@ -91,7 +91,7 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
         throw new ApiError(404, "provide valid tweet id")
     }
 
-    const isLiked = await Like.findOne({ video: tweetId, likedBy: req.user._id })
+    const isLiked = await Like.findOne({ tweet: tweetId, likedBy: req.user._id })
 
     if (!isLiked) {
         try {
@@ -103,7 +103,7 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
             return res
                 .status(200)
                 .json(
-                    new ApiResponse(200, liked, "liked video successfully")
+                    new ApiResponse(200, liked, "liked tweet successfully")
                 )
         } catch (error) {
             throw new ApiError(500, "error while adding like")
@@ -126,7 +126,7 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
 
 const getLikedVideos = asyncHandler(async (req, res) => {
 
-    const likedVidoes = Like.aggregate([
+    const likedVidoes = await Like.aggregate([
         {
             $match: { likedBy: new mongoose.Types.ObjectId(req.user._id) }
         },
