@@ -79,11 +79,6 @@ const registerUser = asyncHandler( async (req, res) => {
 
     const avatar = await uploadOnCloudinary(avatarLocalPath)
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
-    
-
-    if (!avatar) {
-        throw new ApiError(400, "avatar file is required")
-    }
 
     const user = await User.create({
         fullName, 
@@ -101,6 +96,8 @@ const registerUser = asyncHandler( async (req, res) => {
     
 
     if (!createdUser) {
+        deleteOnCloudinary(avatar.url)
+        deleteOnCloudinary(coverImage.url)
         throw new ApiError(500, "Something went wrong while registering the user")
     }
 

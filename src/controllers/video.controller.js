@@ -6,7 +6,7 @@ import { Like } from "../models/like.model.js"
 import { ApiError } from "../utils/apiError.js"
 import { ApiResponse } from "../utils/apiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { deleteOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -113,6 +113,8 @@ const publishAVideo = asyncHandler(async (req, res) => {
     })
 
     if(!upload){
+        deleteOnCloudinary(video.url)
+        deleteOnCloudinary(thumbnail.url)
         throw new ApiError(500, "error while making document")
     }
 
